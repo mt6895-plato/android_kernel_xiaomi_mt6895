@@ -6051,7 +6051,7 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 	case BINDER_GET_EXTENDED_ERROR: {
 		struct binder_extended_error ee;
-		u32 seq;
+		u64 seq;
 
 		if (size != sizeof(struct binder_extended_error)) {
 			ret = -EINVAL;

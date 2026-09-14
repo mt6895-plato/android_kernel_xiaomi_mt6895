@@ -612,7 +612,7 @@ struct binder_thread {
 	struct binder_error return_error;
 	struct binder_error reply_error;
 	struct binder_extended_error extended_error;
-	u32 extended_error_seq;
+	u64 extended_error_seq;
 	wait_queue_head_t wait;
 	struct binder_stats stats;
 	atomic_t tmp_ref;
