@@ -6057,6 +6057,10 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			ret = -EINVAL;
 			goto err;
 		}
+		if (!access_ok(ubuf, sizeof(ee))) {
+			ret = -EFAULT;
+			goto err;
+		}
 		binder_inner_proc_lock(thread->proc);
 		ee = thread->extended_error;
 		seq = thread->extended_error_seq;
