@@ -583,7 +583,7 @@ struct binder_proc_ext *proc_wrapper(struct binder_proc *proc)
  *                        (protected by @proc->inner_lock)
  * @extended_error:       detailed error information for userspace retrieval
  *                        with BINDER_GET_EXTENDED_ERROR
- *                        (only accessed by this thread)
+ *                        (protected by @proc->inner_lock)
  * @extended_error_seq:   sequence number for @extended_error updates
  *                        (protected by @proc->inner_lock)
  * @wait:                 wait queue for thread work
