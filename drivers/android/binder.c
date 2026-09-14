@@ -6031,19 +6031,22 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	case BINDER_GET_EXTENDED_ERROR: {
-		struct binder_extended_error ee = thread->extended_error;
+		struct binder_extended_error ee;
 
 		if (size != sizeof(struct binder_extended_error)) {
 			ret = -EINVAL;
 			goto err;
 		}
+		binder_inner_proc_lock(thread->proc);
+		ee = thread->extended_error;
+		thread->extended_error.command = BR_OK;
+		thread->extended_error.param = 0;
+		thread->extended_error.id = 0;
+		binder_inner_proc_unlock(thread->proc);
 		if (copy_to_user(ubuf, &ee, sizeof(ee))) {
 			ret = -EFAULT;
 			goto err;
 		}
-		thread->extended_error.command = BR_OK;
-		thread->extended_error.param = 0;
-		thread->extended_error.id = 0;
 		break;
 	}
 	default:
