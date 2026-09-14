@@ -189,6 +189,7 @@ static void binder_set_extended_error_ilocked(struct binder_thread *thread,
 	thread->extended_error.id = id;
 	thread->extended_error.command = command;
 	thread->extended_error.param = param;
+	thread->extended_error_seq++;
 }
 
 static void binder_set_extended_error(struct binder_thread *thread,
@@ -6039,6 +6040,7 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 	case BINDER_GET_EXTENDED_ERROR: {
 		struct binder_extended_error ee;
+		u32 clear_seq;
 
 		if (size != sizeof(struct binder_extended_error)) {
 			ret = -EINVAL;
@@ -6047,13 +6049,16 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		binder_inner_proc_lock(thread->proc);
 		ee = thread->extended_error;
 		binder_set_extended_error_ilocked(thread, 0, BR_OK, 0);
+		clear_seq = thread->extended_error_seq;
 		binder_inner_proc_unlock(thread->proc);
 		if (copy_to_user(ubuf, &ee, sizeof(ee))) {
 			binder_inner_proc_lock(thread->proc);
-			if (thread->extended_error.id == 0 &&
+			if (thread->extended_error_seq == clear_seq &&
+			    thread->extended_error.id == 0 &&
 			    thread->extended_error.command == BR_OK &&
 			    thread->extended_error.param == 0)
-				thread->extended_error = ee;
+				binder_set_extended_error_ilocked(
+					thread, ee.id, ee.command, ee.param);
 			binder_inner_proc_unlock(thread->proc);
 			ret = -EFAULT;
 			goto err;
