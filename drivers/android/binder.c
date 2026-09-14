@@ -211,6 +211,17 @@ static bool binder_extended_error_is_clear(const struct binder_extended_error *e
 	return ee->id == 0 && ee->command == BR_OK && ee->param == 0;
 }
 
+static void binder_consume_extended_error_ilocked(
+	struct binder_thread *thread, struct binder_extended_error *ee,
+	u64 *prev_seq, u64 *clear_seq)
+{
+	*ee = thread->extended_error;
+	*prev_seq = thread->extended_error_seq;
+	thread->extended_error_seq++;
+	*clear_seq = thread->extended_error_seq;
+	binder_set_extended_error_ilocked(thread, 0, BR_OK, 0);
+}
+
 struct binder_transaction_log_entry {
 	int debug_id;
 	int debug_id_done;
@@ -6052,7 +6063,7 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 	case BINDER_GET_EXTENDED_ERROR: {
 		struct binder_extended_error ee;
-		u64 seq;
+		u64 prev_seq, clear_seq;
 
 		if (size != sizeof(struct binder_extended_error)) {
 			ret = -EINVAL;
@@ -6063,18 +6074,18 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			goto err;
 		}
 		binder_inner_proc_lock(thread->proc);
-		ee = thread->extended_error;
-		binder_set_extended_error_ilocked(thread, 0, BR_OK, 0);
-		thread->extended_error_seq++;
-		seq = thread->extended_error_seq;
+		binder_consume_extended_error_ilocked(thread, &ee, &prev_seq,
+						      &clear_seq);
 		binder_inner_proc_unlock(thread->proc);
 		if (copy_to_user(ubuf, &ee, sizeof(ee))) {
 			binder_inner_proc_lock(thread->proc);
-			if (thread->extended_error_seq == seq &&
+			if (thread->extended_error_seq == clear_seq &&
 			    binder_extended_error_is_clear(
-					&thread->extended_error))
+					&thread->extended_error)) {
 				binder_set_extended_error_ilocked(
 					thread, ee.id, ee.command, ee.param);
+				thread->extended_error_seq = prev_seq;
+			}
 			binder_inner_proc_unlock(thread->proc);
 			ret = -EFAULT;
 			goto err;
