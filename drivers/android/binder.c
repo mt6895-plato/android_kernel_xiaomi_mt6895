@@ -183,12 +183,20 @@ static inline void binder_stats_created(enum binder_stat_types type)
 	atomic_inc(&binder_stats.obj_created[type]);
 }
 
-static void binder_set_extended_error(struct binder_thread *thread,
-				      u32 id, u32 command, s32 param)
+static void binder_set_extended_error_ilocked(struct binder_thread *thread,
+					      u32 id, u32 command, s32 param)
 {
 	thread->extended_error.id = id;
 	thread->extended_error.command = command;
 	thread->extended_error.param = param;
+}
+
+static void binder_set_extended_error(struct binder_thread *thread,
+				      u32 id, u32 command, s32 param)
+{
+	spin_lock(&thread->proc->inner_lock);
+	binder_set_extended_error_ilocked(thread, id, command, param);
+	spin_unlock(&thread->proc->inner_lock);
 }
 
 struct binder_transaction_log_entry {
@@ -1833,9 +1841,9 @@ static void binder_send_failed_reply(struct binder_transaction *t,
 
 			binder_pop_transaction_ilocked(target_thread, t);
 			if (target_thread->reply_error.cmd == BR_OK) {
-				binder_set_extended_error(target_thread,
-							  t->debug_id,
-							  error_code, 0);
+				binder_set_extended_error_ilocked(
+					target_thread, t->debug_id,
+					error_code, 0);
 				target_thread->reply_error.cmd = error_code;
 				binder_enqueue_thread_work_ilocked(
 					target_thread,
@@ -6039,9 +6047,7 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 		binder_inner_proc_lock(thread->proc);
 		ee = thread->extended_error;
-		thread->extended_error.command = BR_OK;
-		thread->extended_error.param = 0;
-		thread->extended_error.id = 0;
+		binder_set_extended_error_ilocked(thread, 0, BR_OK, 0);
 		binder_inner_proc_unlock(thread->proc);
 		if (copy_to_user(ubuf, &ee, sizeof(ee))) {
 			ret = -EFAULT;
