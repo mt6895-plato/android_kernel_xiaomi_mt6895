@@ -4434,8 +4434,7 @@ static int binder_thread_write(struct binder_proc *proc,
 					WARN_ON(thread->return_error.cmd !=
 						BR_OK);
 					binder_set_extended_error(
-						thread, 0,
-						BC_REQUEST_DEATH_NOTIFICATION,
+						thread, 0, BR_ERROR,
 						-ENOMEM);
 					thread->return_error.cmd = BR_ERROR;
 					binder_enqueue_thread_work(
@@ -5331,7 +5330,7 @@ static struct binder_thread *binder_get_thread_ilocked(
 	thread->reply_error.work.type = BINDER_WORK_RETURN_ERROR;
 	thread->reply_error.cmd = BR_OK;
 	binder_set_extended_error_ilocked(thread, 0, BR_OK, 0);
-	INIT_LIST_HEAD(&new_thread->waiting_thread_node);
+	INIT_LIST_HEAD(&thread->waiting_thread_node);
 	return thread;
 }
 
@@ -6051,7 +6050,9 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		binder_inner_proc_unlock(thread->proc);
 		if (copy_to_user(ubuf, &ee, sizeof(ee))) {
 			binder_inner_proc_lock(thread->proc);
-			if (thread->extended_error.command == BR_OK)
+			if (thread->extended_error.id == 0 &&
+			    thread->extended_error.command == BR_OK &&
+			    thread->extended_error.param == 0)
 				thread->extended_error = ee;
 			binder_inner_proc_unlock(thread->proc);
 			ret = -EFAULT;
