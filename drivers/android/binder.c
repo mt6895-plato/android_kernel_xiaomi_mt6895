@@ -5341,6 +5341,7 @@ static struct binder_thread *binder_get_thread_ilocked(
 	thread->return_error.cmd = BR_OK;
 	thread->reply_error.work.type = BINDER_WORK_RETURN_ERROR;
 	thread->reply_error.cmd = BR_OK;
+	thread->extended_error_seq = 0;
 	binder_set_extended_error_ilocked(thread, 0, BR_OK, 0);
 	INIT_LIST_HEAD(&thread->waiting_thread_node);
 	return thread;
@@ -6063,8 +6064,9 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 		binder_inner_proc_lock(thread->proc);
 		ee = thread->extended_error;
-		seq = thread->extended_error_seq;
 		binder_set_extended_error_ilocked(thread, 0, BR_OK, 0);
+		thread->extended_error_seq++;
+		seq = thread->extended_error_seq;
 		binder_inner_proc_unlock(thread->proc);
 		if (copy_to_user(ubuf, &ee, sizeof(ee))) {
 			binder_inner_proc_lock(thread->proc);
