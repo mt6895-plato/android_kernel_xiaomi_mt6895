@@ -581,6 +581,9 @@ struct binder_proc_ext *proc_wrapper(struct binder_proc *proc)
  *                        (only accessed by this thread)
  * @reply_error:          transaction errors reported by target thread
  *                        (protected by @proc->inner_lock)
+ * @extended_error:       detailed error information for userspace retrieval
+ *                        with BINDER_GET_EXTENDED_ERROR
+ *                        (only accessed by this thread)
  * @wait:                 wait queue for thread work
  * @stats:                per-thread statistics
  *                        (atomics, no lock needed)
@@ -606,6 +609,7 @@ struct binder_thread {
 	bool process_todo;
 	struct binder_error return_error;
 	struct binder_error reply_error;
+	struct binder_extended_error extended_error;
 	wait_queue_head_t wait;
 	struct binder_stats stats;
 	atomic_t tmp_ref;

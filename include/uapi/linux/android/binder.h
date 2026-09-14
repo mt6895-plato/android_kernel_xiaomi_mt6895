@@ -290,6 +290,12 @@ struct binder_frozen_state_info {
 	__u32            reserved;
 };
 
+struct binder_extended_error {
+	__u32            id;
+	__u32            command;
+	__s32            param;
+};
+
 #define BINDER_WRITE_READ		_IOWR('b', 1, struct binder_write_read)
 #define BINDER_SET_IDLE_TIMEOUT		_IOW('b', 3, __s64)
 #define BINDER_SET_MAX_THREADS		_IOW('b', 5, __u32)
@@ -303,6 +309,7 @@ struct binder_frozen_state_info {
 #define BINDER_FREEZE			_IOW('b', 14, struct binder_freeze_info)
 #define BINDER_GET_FROZEN_INFO		_IOWR('b', 15, struct binder_frozen_status_info)
 #define BINDER_ENABLE_ONEWAY_SPAM_DETECTION	_IOW('b', 16, __u32)
+#define BINDER_GET_EXTENDED_ERROR	_IOWR('b', 17, struct binder_extended_error)
 
 /*
  * NOTE: Two special error codes you should check for when calling
@@ -614,4 +621,3 @@ enum binder_driver_command_protocol {
 };
 
 #endif /* _UAPI_LINUX_BINDER_H */
-

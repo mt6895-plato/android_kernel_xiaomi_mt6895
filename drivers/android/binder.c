@@ -183,6 +183,14 @@ static inline void binder_stats_created(enum binder_stat_types type)
 	atomic_inc(&binder_stats.obj_created[type]);
 }
 
+static void binder_set_extended_error(struct binder_thread *thread,
+				      u32 id, u32 command, s32 param)
+{
+	thread->extended_error.id = id;
+	thread->extended_error.command = command;
+	thread->extended_error.param = param;
+}
+
 struct binder_transaction_log_entry {
 	int debug_id;
 	int debug_id_done;
@@ -1825,6 +1833,9 @@ static void binder_send_failed_reply(struct binder_transaction *t,
 
 			binder_pop_transaction_ilocked(target_thread, t);
 			if (target_thread->reply_error.cmd == BR_OK) {
+				binder_set_extended_error(target_thread,
+							  t->debug_id,
+							  error_code, 0);
 				target_thread->reply_error.cmd = error_code;
 				binder_enqueue_thread_work_ilocked(
 					target_thread,
@@ -3928,6 +3939,8 @@ err_invalid_target_handle:
 		binder_enqueue_thread_work(thread, &thread->return_error.work);
 		binder_send_failed_reply(in_reply_to, return_error);
 	} else {
+		binder_set_extended_error(thread, t_debug_id, return_error,
+					  return_error_param);
 		thread->return_error.cmd = return_error;
 		binder_enqueue_thread_work(thread, &thread->return_error.work);
 	}
@@ -4412,6 +4425,10 @@ static int binder_thread_write(struct binder_proc *proc,
 				if (death == NULL) {
 					WARN_ON(thread->return_error.cmd !=
 						BR_OK);
+					binder_set_extended_error(
+						thread, 0,
+						BC_REQUEST_DEATH_NOTIFICATION,
+						-ENOMEM);
 					thread->return_error.cmd = BR_ERROR;
 					binder_enqueue_thread_work(
 						thread,
@@ -5305,6 +5322,7 @@ static struct binder_thread *binder_get_thread_ilocked(
 	thread->return_error.cmd = BR_OK;
 	thread->reply_error.work.type = BINDER_WORK_RETURN_ERROR;
 	thread->reply_error.cmd = BR_OK;
+	thread->extended_error.command = BR_OK;
 	INIT_LIST_HEAD(&new_thread->waiting_thread_node);
 	return thread;
 }
@@ -6010,6 +6028,22 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		binder_inner_proc_lock(proc);
 		proc->oneway_spam_detection_enabled = (bool)enable;
 		binder_inner_proc_unlock(proc);
+		break;
+	}
+	case BINDER_GET_EXTENDED_ERROR: {
+		struct binder_extended_error ee = thread->extended_error;
+
+		if (size != sizeof(struct binder_extended_error)) {
+			ret = -EINVAL;
+			goto err;
+		}
+		if (copy_to_user(ubuf, &ee, sizeof(ee))) {
+			ret = -EFAULT;
+			goto err;
+		}
+		thread->extended_error.command = BR_OK;
+		thread->extended_error.param = 0;
+		thread->extended_error.id = 0;
 		break;
 	}
 	default:
