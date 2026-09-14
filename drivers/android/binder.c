@@ -6045,7 +6045,6 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 	case BINDER_GET_EXTENDED_ERROR: {
 		struct binder_extended_error ee;
-		u32 ee_seq;
 		u32 clear_seq;
 
 		if (size != sizeof(struct binder_extended_error)) {
@@ -6054,9 +6053,8 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 		binder_inner_proc_lock(thread->proc);
 		ee = thread->extended_error;
-		ee_seq = thread->extended_error_seq;
 		binder_set_extended_error_ilocked(thread, 0, BR_OK, 0);
-		clear_seq = ee_seq + 1;
+		clear_seq = thread->extended_error_seq;
 		binder_inner_proc_unlock(thread->proc);
 		if (copy_to_user(ubuf, &ee, sizeof(ee))) {
 			binder_inner_proc_lock(thread->proc);
